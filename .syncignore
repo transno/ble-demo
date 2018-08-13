@@ -1,0 +1,1 @@
+{**/*.css.map,**/*.js.map,**/node_modules/**,gulpfile.js,package.json,package-lock.json,**/js/**,**/scss/**}

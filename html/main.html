@@ -7,68 +7,298 @@
     <link rel="stylesheet" type="text/css" href="../css/api.css" />
     <link rel="stylesheet" type="text/css" href="../css/common.css" />
 	<style>
-		#con{
-			margin:10px;
-			font-size: 28px; 
+		.title {
+			text-align: center;
+			font-size: 24px;
+			color: #333;
+			margin-bottom: 10px;
 		}
-		ul{
-			display:-webkit-box;
-			-webkit-box-orient: vertical;
-			margin-bottom:10px;
+		.btns {
+			font-size: 0;
+			margin-bottom: 20px;
+			text-align: center;
 		}
-		.txt{ 
-			margin:5px 10px;
-			padding:5px;
-			/**background-color:#3B424C;**/
-			color:#000;
-			word-wrap: break-word;
+		.btn {
+			display: inline-block;
+			vertical-align: top;
+			width: 80px;
+			height: 40px;
+			text-align: center;
+			line-height: 40px;
+			font-size: 14px;
+			background: #7b7be6;
+			color: #fff;
+			margin: 0 10px;
+		}
+		.blelist {
+			border-top: 1px solid #d1d1d1;
+			margin-bottom: 10px;
+		}
+		.blelist li {
+			border-bottom: 1px solid #d1d1d1;
+			padding: 10px;
+			font-size: 14px;
+			line-height: 1.8em;
 		}
 	</style>
 </head>
 <body>
-    <div >
-        <div > 
-            <label id="con">Hello APP</label><br><br>
-			<div id='sys-info'></div>
-        </div>
+    <div>
+    	<div class="title">蓝牙测试</div>
+    	<div class="btns">
+    		<div class="btn" id="scanBle">扫描</div>
+    		<div class="btn" id="connectBle">连接蓝牙</div>
+    	</div>
+    	<ul class="blelist" id="blelist">
+    		<li>
+    			<h4>蓝牙名称:</h4>
+    			<p>蓝牙广播的数据:</p>
+    			<p>UUID:</p>
+    			<p>信号强度:</p>
+    		</li>
+    	</ul>
+    	<div class="btns">
+    		<div class="btn" id="scanService">搜索服务</div>
+    	</div>
+    	<ul class="blelist" id="servicelist">
+    		<li>
+    			<h4>蓝牙名称:</h4>
+    			<p>蓝牙广播的数据:</p>
+    			<p>UUID:</p>
+    			<p>信号强度:</p>
+    		</li>
+    	</ul>
+    	<div class="title">该服务的特征UUID</div>
+    	<ul class="blelist" id="characteristiclist">
+    		<li>
+    			<h4>特征UUID:</h4>
+    		</li>
+    	</ul>
+    	<div class="btns">
+    		<div class="btn" id="notice">监听数据</div>
+    		<div class="btn" id="read">读取数据</div>
+    		<div class="btn" id="closeNotice">关闭监听</div>
+    	</div>
+    	<div class="title">监听的数据</div>
+    	<ul class="blelist">
+    		<li>
+    			<h4>特征UUID:<span id="uuid"></span></h4>
+    			<p>服务UUID: <span id="suuid"></span>		</p>
+    			<p>16进制值:<span id="hexValue"></span></p>
+    			<p>转换字符串值:<span id="stringValue"></span></p>
+    			<p>权限:<span id="permissions"></span></p>
+    			<p>属性:<span id="propertie"></span></p>
+    		</li>
+    	</ul>
     </div>
 </body>
 <script type="text/javascript" src="../script/api.js"></script>
 <script type="text/javascript">
+	// uuid: F0:B5:D1:5B:F6:04
+	// 蓝牙4.0的UUID,其中特征UUID:0000ffe1-0000-1000-8000-00805f9b34fb是广州汇承信息科技有限公司08蓝牙模块的UUID
+
+	var ble;
+	var peripheralUUID = 'F0:B5:D1:5B:F6:04'
+	var serviceUUID = ''
+	var characteristicUUID = ''
+	var scanTime = null
 
     apiready = function(){
-		var ver = api.version;
-		var sType = api.systemType;
-		var sVer = api.systemVersion;
-		var id = api.deviceId;
-		var model = api.deviceModel;
-		var name = api.deviceName;
-		var cType = api.connectionType;
-		var winName = api.winName;
-		var winWidth = api.winWidth;
-		var winHeight = api.winHeight;
-		var frameName = api.frameName||'';
-		var frameWidth = api.frameWidth||'';
-		var frameHeight = api.frameHeight||'';
+		api.parseTapmode();
 
-		var str = '<ul>';
-		str += '<li><div class="txt">引擎版本信息: ' + ver + '</div></li>';
-		str += '<li><div class="txt">系统类型: ' + sType + '</div></li>';
-		str += '<li><div class="txt">系统版本: ' + sVer + '</div></li>';
-		str += '<li><div class="txt">设备标识: ' + id + '</div></li>';
-		str += '<li><div class="txt">设备型号: ' + model + '</div></li>';
-		str += '<li><div class="txt">设备名称: ' + name + '</div></li>';
-		str += '<li><div class="txt">网络状态: ' + cType + '</div></li>';
-		str += '<li><div class="txt">主窗口名字: ' + winName + '</div></li>';
-		str += '<li><div class="txt">主窗口宽度: ' + winWidth + '</div></li>';
-		str += '<li><div class="txt">主窗口高度: ' + winHeight + '</div></li>';
-		str += '<li><div class="txt">子窗口名字: ' + frameName + '</div></li>';
-		str += '<li><div class="txt">子窗口宽度: ' + frameWidth + '</div></li>';
-		str += '<li><div class="txt">子窗口高度: ' + frameHeight + '</div></li>';
-		str += '</ul>';
+		ble = api.require('ble')
 
-		$api.byId('sys-info').innerHTML = str;
+		var scanBtn = document.getElementById('scanBle')
+		var connectBtn = document.getElementById('connectBle')
+		var serviceBtn = document.getElementById('scanService')
+		var noticeBtn = document.getElementById('notice')
+		var readBtn = document.getElementById('read')
+		var closeNoticeBtn = document.getElementById('closeNotice')
 
+		ble.initManager(function (initret) {
+            console.log(JSON.stringify(initret));
+            if (initret.state == "poweredOn") {
+                api.alert({
+                    msg: "初始化成功"
+                });
+            }
+        });
+
+		scanBtn.onclick = function () {
+			clearTimeout(scanTime)
+			ble.scan(function (scanret) {
+
+				if (scanret.status) {
+
+					scanTime = setTimeout(function () {
+						ble.getPeripheral(function (pret) {
+
+							api.alert({
+							    msg: JSON.stringify(pret)
+							});
+
+							if (pret) {
+								console.log('扫描结果---->' + JSON.stringify(pret));
+								var html = ''
+
+								pret.peripherals.forEach(function (v) {
+
+									html += '<li><h4>蓝牙名称:'+v.name+'</h4><p>UUID:'+v.uuid+'</p><p>信号强度:'+v.rssi+'</p></li>'
+								})
+
+								document.getElementById('blelist').innerHTML = html
+							}
+						})
+					}, 400)
+
+				}
+			})
+		}
+
+		connectBtn.onclick = function () {
+			ble.connect({
+			    peripheralUUID: peripheralUUID
+			}, function(ret, err) {
+			    if (ret.status) {
+			        api.alert({
+			            msg: JSON.stringify(ret)
+			        });
+			    } else {
+			        alert(err.code);
+			    }
+			});
+		}
+
+		serviceBtn.onclick = function () {
+			ble.discoverService({
+			    peripheralUUID: peripheralUUID
+			}, function(ret) {
+			    if (ret) {
+			        api.alert({ msg: JSON.stringify(ret) });
+
+			        var html = ''
+
+			        ret.services.forEach(function (v) {
+			        	html += '<li class="serviceli" data-uuid="'+v+'"><h4>服务名称:'+v+'</h4></li>'
+			        })
+
+			        
+			        document.getElementById('servicelist').innerHTML = html
+
+			        var oli = document.querySelectorAll('.serviceli')
+			        for (var i = 0; i < oli.length; i++) {
+			        	(function (x) {
+			        		var uuid = oli[x].getAttribute('data-uuid')
+			        		oli[x].onclick = function () {
+			        			getCharacteristics(uuid)
+			        		}
+			        	})(i)
+			        	
+			        }
+			    }
+			});
+		}
+		
+		function getCharacteristics(serversuuid) {
+			serviceUUID = serversuuid
+
+			ble.discoverCharacteristics({
+
+			    serviceUUID:serversuuid,
+			    peripheralUUID: peripheralUUID
+
+			}, function(ret) {
+			    if (ret) {
+			        api.alert({ msg: JSON.stringify(ret) });
+
+			        var html = ''
+
+			        ret.characteristics.forEach(function (v) {
+			        	html += '<li class="characteristicsli" data-uuid="'+v.uuid+'"><h4>特征UUID:'+v.uuid+'</h4><p>服务uuid:'+v.serviceUUID+'</p><p>特征权限:'+v.permissions+'</p><p>特征属性:'+v.properties+'</p></li>'
+			        })
+
+			        document.getElementById('characteristiclist').innerHTML = html
+
+			        var oli = document.querySelectorAll('.characteristicsli')
+			        for (var i = 0; i < oli.length; i++) {
+			        	(function (x) {
+			        		var uuid = oli[x].getAttribute('data-uuid')
+			        		oli[x].onclick = function () {
+			        			setNoticeConfig(uuid)
+			        		}
+			        	})(i)
+			        }
+			    }
+			});
+		}
+
+		function setNoticeConfig(uuid) {
+			characteristicUUID = uuid
+
+			// api.alert({ msg: '设置监听参数 \n peripheralUUID:'+ peripheralUUID +'\n serviceUUID:' + serviceUUID + '\n characteristicUUID:' + characteristicUUID });
+			
+		}
+
+		noticeBtn.onclick = function () {
+			api.alert({ msg: '设置监听参数 \n peripheralUUID:'+ peripheralUUID +'\n serviceUUID:' + serviceUUID + '\n characteristicUUID:' + characteristicUUID });
+			ble.setNotify({
+			    peripheralUUID: peripheralUUID,
+			    serviceUUID: serviceUUID,
+			    characteristicUUID: characteristicUUID
+			}, function(ret, err) {
+				// api.alert({ msg: JSON.stringify(ret) });
+			    if (ret.status) {
+			    	console.log(JSON.stringify(ret))
+			        // api.alert({ msg: JSON.stringify(ret) });
+			        document.getElementById('uuid').innerHTML = ret.characteristic.uuid
+			        document.getElementById('suuid').innerHTML = ret.characteristic.serviceUUID
+			        document.getElementById('hexValue').innerHTML = ret.characteristic.value
+			        document.getElementById('stringValue').innerHTML = hexCharCodeToStr(ret.characteristic.value)
+			        document.getElementById('permissions').innerHTML = ret.characteristic.permissions
+			        document.getElementById('propertie').innerHTML = ret.characteristic.propertie
+			    } else {
+			    	console.log(err.code)
+			    }
+			});
+		}
+
+		closeNoticeBtn.onclick = function () {
+			ble.disconnect({
+				peripheralUUID: peripheralUUID
+			}, function(ret, err) {
+			    if (ret.status) {
+			        alert("断开连接成功！");
+			    }
+			});
+		}
+
+		/**
+		* 16进制转成字符串
+		*/
+		function hexCharCodeToStr(hexCharCodeStr) {
+		　　var trimedStr = hexCharCodeStr.trim();
+
+		　　var rawStr = 
+		　　trimedStr.substr(0,2).toLowerCase() === "0x"
+		　　? 
+		　　trimedStr.substr(2) 
+		　　: 
+		　　trimedStr;
+
+		　　var len = rawStr.length;
+		　　if(len % 2 !== 0) {
+		　　　　alert("Illegal Format ASCII Code!");
+		　　　　return "";
+		　　}
+
+		　　var curCharCode;
+		　　var resultStr = [];
+		　　for(var i = 0; i < len;i = i + 2) {
+		　　　　curCharCode = parseInt(rawStr.substr(i, 2), 16); // ASCII Code Value
+		　　　　resultStr.push(String.fromCharCode(curCharCode));
+		　　}
+		　　return resultStr.join("");
+		}
     }
 </script>
 </html>
